@@ -165,6 +165,7 @@ static int http_status_counts[1000];	/* room for all three-digit statuses */
 
 static char* argv0;
 static int do_checksum, do_throttle, do_verbose, do_jitter, do_proxy;
+static FILE* freport;
 static float throttle;
 static int idle_secs;
 static char* proxy_hostname;
@@ -253,6 +254,7 @@ main( int argc, char** argv )
     argv0 = argv[0];
     argn = 1;
     do_checksum = do_throttle = do_verbose = do_jitter = do_proxy = 0;
+    freport = NULL;
     throttle = THROTTLE;
     sip_file = (char*) 0;
     idle_secs = IDLE_SECS;
@@ -271,6 +273,14 @@ main( int argc, char** argv )
 	    }
 	else if ( strncmp( argv[argn], "-verbose", strlen( argv[argn] ) ) == 0 )
 	    do_verbose = 1;
+	else if ( strncmp( argv[argn], "-report", strlen( argv[argn] ) ) == 0 && argn + 1 < argc ){
+	  freport = fopen( argv[++argn], "w" );
+	  if ( freport == (FILE*) 0 ){
+	    perror( argv[++argn] );
+	    exit( 1 );
+	  }
+	  (void)fprintf(freport, "TIME|URL|ERRORS|DURATION|CODE\n");
+	}
 	else if ( strncmp( argv[argn], "-timeout", strlen( argv[argn] ) ) == 0 && argn + 1 < argc )
 	    idle_secs = atoi( argv[++argn] );
 	else if ( strncmp( argv[argn], "-jitter", strlen( argv[argn] ) ) == 0 )
@@ -501,6 +511,9 @@ main( int argc, char** argv )
 	tmr_run( &now );
 	}
 
+    if(freport){
+      fclose(freport);
+    }
     /* NOT_REACHED */
     }
 
@@ -509,7 +522,7 @@ static void
 usage( void )
     {
     (void) fprintf( stderr,
-	"usage:  %s [-checksum] [-throttle] [-proxy host:port] [-verbose] [-timeout secs] [-sip sip_file]\n", argv0 );
+	"usage:  %s [-checksum] [-throttle] [-proxy host:port] [-verbose] [-report file] [-timeout secs] [-sip sip_file]\n", argv0 );
 #ifdef USE_SSL
     (void) fprintf( stderr,
 	"            [-cipher str]\n" );
@@ -1749,10 +1762,11 @@ close_connection( int cnum, struct timeval* nowP )
       ++bad;
     }
 
-    if(!bad && do_verbose){
-      (void)fprintf(stderr, "%s: %dms GOOD[%d]\n",
-		    urls[url_num].url_str, ms,
-		    connections[cnum].http_status);
+    if(freport){
+      (void)fprintf(freport, "%ld.%ld|%s|%d|%d|%d\n",
+		    (long)nowP->tv_sec, (long)nowP->tv_usec/1000,
+		    urls[url_num].url_str,
+		    bad, ms, connections[cnum].http_status);
     }
     }
 
