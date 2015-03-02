@@ -197,7 +197,7 @@ static void handle_connect( int cnum, struct timeval* nowP, int double_check );
 static void handle_read( int cnum, struct timeval* nowP );
 static void idle_connection( ClientData client_data, struct timeval* nowP );
 static void wakeup_connection( ClientData client_data, struct timeval* nowP );
-static void close_connection( int cnum );
+static void close_connection( int cnum, struct timeval* nowP );
 static void progress_report( ClientData client_data, struct timeval* nowP );
 static void start_timer( ClientData client_data, struct timeval* nowP );
 static void end_timer( ClientData client_data, struct timeval* nowP );
@@ -954,11 +954,11 @@ handle_connect( int cnum, struct timeval* nowP, int double_check )
 		    (void) fprintf(
 			stderr, "%s: %s\n", urls[url_num].url_str,
 			strerror( err ) );
-		close_connection( cnum );
+		close_connection( cnum, nowP );
 		return;
 		default:
 		perror( urls[url_num].url_str );
-		close_connection( cnum );
+		close_connection( cnum, nowP );
 		return;
 		}
 	    }
@@ -981,7 +981,7 @@ handle_connect( int cnum, struct timeval* nowP, int double_check )
 		    (void) fprintf(
 			stderr, "%s: cannot set cipher list\n", argv0 );
 		    ERR_print_errors_fp( stderr );
-		    close_connection( cnum );
+		    close_connection( cnum, nowP );
 		    return;
 		    }
 		}
@@ -1006,7 +1006,7 @@ handle_connect( int cnum, struct timeval* nowP, int double_check )
 	    (void) fprintf(
 		stderr, "%s: SSL connection failed - %d\n", argv0, r );
 	    ERR_print_errors_fp( stderr );
-	    close_connection( cnum );
+	    close_connection( cnum, nowP );
 	    return;
 	    }
 	}
@@ -1053,7 +1053,7 @@ handle_connect( int cnum, struct timeval* nowP, int double_check )
     if ( r < 0 )
 	{
 	perror( urls[url_num].url_str );
-	close_connection( cnum );
+	close_connection( cnum, nowP );
 	return;
 	}
     connections[cnum].conn_state = CNST_HEADERS;
@@ -1091,7 +1091,7 @@ handle_read( int cnum, struct timeval* nowP )
 #endif
     if ( bytes_read <= 0 )
 	{
-	close_connection( cnum );
+	  close_connection( cnum, nowP );
 	return;
 	}
 
@@ -1619,7 +1619,7 @@ handle_read( int cnum, struct timeval* nowP )
 	    if ( connections[cnum].content_length != -1 &&
 		 connections[cnum].bytes >= connections[cnum].content_length )
 		{
-		close_connection( cnum );
+		  close_connection( cnum, nowP );
 		return;
 		}
 
@@ -1638,7 +1638,7 @@ idle_connection( ClientData client_data, struct timeval* nowP )
     connections[cnum].idle_timer = (Timer*) 0;
     (void) fprintf(
 	stderr, "%s: timed out\n", urls[connections[cnum].url_num].url_str );
-    close_connection( cnum );
+    close_connection( cnum, nowP );
     ++total_timeouts;
     }
 
@@ -1655,9 +1655,11 @@ wakeup_connection( ClientData client_data, struct timeval* nowP )
 
 
 static void
-close_connection( int cnum )
+close_connection( int cnum, struct timeval* nowP )
     {
     int url_num;
+    int bad = 0;
+    int ms = delta_timeval(&connections[cnum].connect_at, nowP)/1000;
 
 #ifdef USE_SSL
     if ( urls[connections[cnum].url_num].protocol == PROTO_HTTPS )
@@ -1706,8 +1708,10 @@ close_connection( int cnum )
 	    if ( connections[cnum].checksum != urls[url_num].checksum )
 		{
 		(void) fprintf(
-		    stderr, "%s: checksum wrong\n", urls[url_num].url_str );
+		    stderr, "%s: %dms, checksum wrong\n",
+		    urls[url_num].url_str, ms);
 		++total_badchecksums;
+		++bad;
 		}
 	    }
 	}
@@ -1723,16 +1727,26 @@ close_connection( int cnum )
 	    if ( connections[cnum].bytes != urls[url_num].bytes )
 		{
 		(void) fprintf(
-		    stderr, "%s: byte count wrong\n", urls[url_num].url_str );
+		    stderr, "%s: %dms byte count wrong\n",
+		    urls[url_num].url_str, ms );
 		++total_badbytes;
+		++bad;
 		}
 	    }
 	}
     if(urls[url_num].status > 0 &&
        connections[cnum].http_status != urls[url_num].status){
-      (void)fprintf(stderr, "%s: EXPECT %d GOT %d\n", urls[url_num].url_str,
+      (void)fprintf(stderr, "%s: %dms EXPECT %d GOT %d\n",
+		    urls[url_num].url_str, ms,
 		    urls[url_num].status, connections[cnum].http_status);
       ++total_badstatuses;
+      ++bad;
+    }
+
+    if(!bad && do_verbose){
+      (void)fprintf(stderr, "%s: %dms GOOD[%d]\n",
+		    urls[url_num].url_str, ms,
+		    connections[cnum].http_status);
     }
     }
 
