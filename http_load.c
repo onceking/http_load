@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -73,6 +74,7 @@
 
 typedef struct {
     char* url_str;
+    int status;
     int protocol;
     char* hostname;
     unsigned short port;
@@ -175,7 +177,7 @@ static int fetches_started, connects_completed, responses_completed, fetches_com
 static long long total_bytes;
 static long long total_connect_usecs, max_connect_usecs, min_connect_usecs;
 static long long total_response_usecs, max_response_usecs, min_response_usecs;
-int total_timeouts, total_badbytes, total_badchecksums;
+int total_timeouts, total_badbytes, total_badchecksums, total_badstatuses;
 
 static long start_interval, low_interval, high_interval, range_interval;
 
@@ -406,6 +408,7 @@ main( int argc, char** argv )
     total_timeouts = 0;
     total_badbytes = 0;
     total_badchecksums = 0;
+    total_badstatuses = 0;
 
     /* Initialize the random number generator. */
 #ifdef HAVE_SRANDOMDEV
@@ -531,7 +534,7 @@ static void
 read_url_file( char* url_file )
     {
     FILE* fp;
-    char line[5000], hostname[5000];
+    char line_buf[5000], hostname[5000];
     char* http = "http://";
     int http_len = strlen( http );
 #ifdef USE_SSL
@@ -551,8 +554,9 @@ read_url_file( char* url_file )
     max_urls = 100;
     urls = (url*) malloc_check( max_urls * sizeof(url) );
     num_urls = 0;
-    while ( fgets( line, sizeof(line), fp ) != (char*) 0 )
+    while ( fgets( line_buf, sizeof(line_buf), fp ) != (char*) 0 )
 	{
+        char *line = line_buf;
 	/* Nuke trailing newline. */
 	if ( line[strlen( line ) - 1] == '\n' )
 	    line[strlen( line ) - 1] = '\0';
@@ -563,6 +567,11 @@ read_url_file( char* url_file )
 	    max_urls *= 2;
 	    urls = (url*) realloc_check( (void*) urls, max_urls * sizeof(url) );
 	    }
+
+	if(isdigit(line[0]) && isdigit(line[1]) && isdigit(line[2]) && line[3] == ' '){
+	  urls[num_urls].status = (line[0] - '0')*100 + (line[1] - '0')*10 + (line[2] - '0');
+	  line += 4;
+	}
 
 	/* Add to table. */
 	urls[num_urls].url_str = strdup_check( line );
@@ -1719,6 +1728,12 @@ close_connection( int cnum )
 		}
 	    }
 	}
+    if(urls[url_num].status > 0 &&
+       connections[cnum].http_status != urls[url_num].status){
+      (void)fprintf(stderr, "%s: EXPECT %d GOT %d\n", urls[url_num].url_str,
+		    urls[url_num].status, connections[cnum].http_status);
+      ++total_badstatuses;
+    }
     }
 
 
@@ -1788,6 +1803,10 @@ finish( struct timeval* nowP )
 	    (float) min_response_usecs / 1000.0 );
     if ( total_timeouts != 0 )
 	(void) printf( "%d timeouts\n", total_timeouts );
+
+    if ( total_badstatuses != 0 )
+	(void) printf( "%d status mismatches\n", total_badstatuses );
+
     if ( do_checksum )
 	{
 	if ( total_badchecksums != 0 )
