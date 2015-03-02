@@ -11,7 +11,7 @@
 ** 2. Redistributions in binary form must reproduce the above copyright
 **    notice, this list of conditions and the following disclaimer in the
 **    documentation and/or other materials provided with the distribution.
-** 
+**
 ** THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 ** ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 ** IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -608,7 +608,7 @@ read_url_file( char* url_file )
 #else
 	    urls[num_urls].port = 80;
 #endif
-	if ( *cp == '\0' ) 
+	if ( *cp == '\0' )
 	    urls[num_urls].filename = strdup_check( "/" );
 	else
 	    urls[num_urls].filename = strdup_check( cp );
@@ -674,7 +674,7 @@ lookup_address( int url_num )
 	{
 	switch ( ai2->ai_family )
 	    {
-	    case AF_INET: 
+	    case AF_INET:
 	    if ( aiv4 == (struct addrinfo*) 0 )
 		aiv4 = ai2;
 	    break;
@@ -859,7 +859,7 @@ start_socket( int url_num, int cnum, struct timeval* nowP )
 	(void) close( connections[cnum].conn_fd );
 	return;
 	}
-    if ( fcntl( connections[cnum].conn_fd, F_SETFL, flags | O_NDELAY ) < 0 ) 
+    if ( fcntl( connections[cnum].conn_fd, F_SETFL, flags | O_NDELAY ) < 0 )
 	{
 	perror( urls[url_num].url_str );
 	(void) close( connections[cnum].conn_fd );
