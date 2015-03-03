@@ -555,12 +555,17 @@ read_url_file( char* url_file )
     int proto_len, host_len;
     char* cp;
 
-    fp = fopen( url_file, "r" );
-    if ( fp == (FILE*) 0 )
+    if(0 == memcmp(url_file, "-", sizeof("-"))){
+      fp = stdin;
+    }
+    else{
+      fp = fopen( url_file, "r" );
+      if ( fp == (FILE*) 0 )
 	{
-	perror( url_file );
-	exit( 1 );
+	  perror( url_file );
+	  exit( 1 );
 	}
+    }
 
     max_urls = 100;
     urls = (url*) malloc_check( max_urls * sizeof(url) );
@@ -638,6 +643,10 @@ read_url_file( char* url_file )
 	urls[num_urls].got_checksum = 0;
 	++num_urls;
 	}
+
+    if(fp != stdin){
+      fclose(fp);
+    }
     }
 
 
