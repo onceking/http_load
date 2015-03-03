@@ -629,7 +629,7 @@ read_url_file( char* url_file )
 
 
 static void
-lookup_address( int url_num )
+do_lookup_address( int url_num )
     {
     char* hostname;
     unsigned short port;
@@ -752,6 +752,34 @@ lookup_address( int url_num )
 
     }
 
+static void lookup_address( int url_num ){
+  int hit = url_num;
+  if(url_num > 0){
+    if( do_proxy ){
+      hit = 0;
+    }
+    else{
+      for(hit=0; hit<url_num; ++hit){
+	if(urls[hit].port == urls[url_num].port &&
+	   strcmp(urls[hit].hostname, urls[url_num].hostname)){
+	  break;
+	}
+      }
+    }
+  }
+
+  if(hit == url_num){
+    do_lookup_address(url_num);
+  }
+  else{
+    urls[url_num].sock_family = urls[hit].sock_family;
+    urls[url_num].sock_type = urls[hit].sock_type;
+    urls[url_num].sock_protocol = urls[hit].sock_protocol;
+    urls[url_num].sa_len = urls[hit].sa_len;
+    (void)memcpy(&urls[url_num].sa_in, &urls[hit].sa_in,
+		 sizeof(urls[hit].sa_in));
+  }
+}
 
 static void
 read_sip_file( char* sip_file )
