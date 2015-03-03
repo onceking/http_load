@@ -85,8 +85,6 @@ typedef struct {
 #endif /* USE_IPV6 */
     int sa_len, sock_family, sock_type, sock_protocol;
     char* filename;
-    int got_bytes;
-    long bytes;
     int got_checksum;
     long checksum;
     } url;
@@ -624,7 +622,6 @@ read_url_file( char* url_file )
 
 	lookup_address( num_urls );
 
-	urls[num_urls].got_bytes = 0;
 	urls[num_urls].got_checksum = 0;
 	++num_urls;
 	}
@@ -1711,25 +1708,6 @@ close_connection( int cnum, struct timeval* nowP )
 		    stderr, "%s: %dms, checksum wrong\n",
 		    urls[url_num].url_str, ms);
 		++total_badchecksums;
-		++bad;
-		}
-	    }
-	}
-    else
-	{
-	if ( ! urls[url_num].got_bytes )
-	    {
-	    urls[url_num].bytes = connections[cnum].bytes;
-	    urls[url_num].got_bytes = 1;
-	    }
-	else
-	    {
-	    if ( connections[cnum].bytes != urls[url_num].bytes )
-		{
-		(void) fprintf(
-		    stderr, "%s: %dms byte count wrong\n",
-		    urls[url_num].url_str, ms );
-		++total_badbytes;
 		++bad;
 		}
 	    }
