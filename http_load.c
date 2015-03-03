@@ -129,6 +129,7 @@ static connection* connections;
 static int max_connections, num_connections, max_parallel;
 
 static int http_status_counts[1000];	/* room for all three-digit statuses */
+static int http_bad_status_counts[1000];	/* room for all three-digit statuses */
 
 #define CNST_FREE 0
 #define CNST_CONNECTING 1
@@ -398,8 +399,10 @@ main( int argc, char** argv )
     num_connections = max_parallel = 0;
 
     /* Initialize the HTTP status-code histogram. */
-    for ( i = 0; i < 1000; ++i )
+    for ( i = 0; i < 1000; ++i ){
 	http_status_counts[i] = 0;
+	http_bad_status_counts[i] = 0;
+    }
 
     /* Initialize the statistics. */
     fetches_started = 0;
@@ -1767,6 +1770,7 @@ close_connection( int cnum, struct timeval* nowP )
       (void)fprintf(stderr, "%s: %dms EXPECT %d GOT %d\n",
 		    urls[url_num].url_str, ms,
 		    urls[url_num].status, connections[cnum].http_status);
+      ++http_bad_status_counts[urls[url_num].status];
       ++total_badstatuses;
       ++bad;
     }
@@ -1834,7 +1838,8 @@ progress_report( ClientData client_data, struct timeval* nowP )
     (void) printf( "HTTP response codes:\n" );
     for ( i = 0; i < 1000; ++i )
 	if ( http_status_counts[i] > 0 )
-	    (void) printf( "  code %03d -- %d\n", i, http_status_counts[i] );
+	    (void) printf( "  code %03d -- %d %d\n", i,
+			   http_status_counts[i], http_bad_status_counts[i] );
     }
 
 static void
