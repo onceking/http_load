@@ -949,7 +949,7 @@ static void
 handle_connect( int cnum, struct timeval* nowP, int double_check )
     {
     int url_num;
-    char buf[600];
+    char buf[1<<12];
     int bytes, r;
 
     url_num = connections[cnum].url_num;
