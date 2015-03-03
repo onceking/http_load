@@ -66,7 +66,7 @@
 #define THROTTLE 3360
 
 /* How often to show progress reports. */
-#define PROGRESS_SECS 60
+#define PROGRESS_SECS 3
 
 /* How many file descriptors to not use. */
 #define RESERVED_FDS 3
@@ -1784,42 +1784,12 @@ static void
 progress_report( ClientData client_data, struct timeval* nowP )
     {
     float elapsed;
-
-    elapsed = delta_timeval( &start_at, nowP ) / 1000000.0;
-    (void) fprintf( stderr,
-        "--- %g secs, %d fetches started, %d completed, %d current\n",
-	elapsed, fetches_started, fetches_completed, num_connections );
-    }
-
-
-static void
-start_timer( ClientData client_data, struct timeval* nowP )
-    {
-    start_connection( nowP );
-    if ( do_jitter )
-	(void) tmr_create(
-	    nowP, start_timer, JunkClientData,
-	    (long) ( random() % range_interval ) + low_interval, 0 );
-    }
-
-
-static void
-end_timer( ClientData client_data, struct timeval* nowP )
-    {
-    finish( nowP );
-    }
-
-
-static void
-finish( struct timeval* nowP )
-    {
-    float elapsed;
     int i;
 
     /* Report statistics. */
     elapsed = delta_timeval( &start_at, nowP ) / 1000000.0;
     (void) printf(
-	"%d fetches, %d max parallel, %g bytes, in %g seconds\n",
+	"==============\n%d fetches, %d max parallel, %g bytes, in %g seconds\n",
 	fetches_completed, max_parallel, (float) total_bytes, elapsed );
     if ( fetches_completed > 0 )
 	(void) printf(
@@ -1865,7 +1835,30 @@ finish( struct timeval* nowP )
     for ( i = 0; i < 1000; ++i )
 	if ( http_status_counts[i] > 0 )
 	    (void) printf( "  code %03d -- %d\n", i, http_status_counts[i] );
+    }
 
+static void
+start_timer( ClientData client_data, struct timeval* nowP )
+    {
+    start_connection( nowP );
+    if ( do_jitter )
+	(void) tmr_create(
+	    nowP, start_timer, JunkClientData,
+	    (long) ( random() % range_interval ) + low_interval, 0 );
+    }
+
+
+static void
+end_timer( ClientData client_data, struct timeval* nowP )
+    {
+    finish( nowP );
+    }
+
+
+static void
+finish( struct timeval* nowP )
+    {
+      progress_report(JunkClientData, nowP);
     tmr_destroy();
 #ifdef USE_SSL
     if ( ssl_ctx != (SSL_CTX*) 0 )
