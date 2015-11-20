@@ -760,8 +760,7 @@ static void lookup_address( int url_num ){
     }
     else{
       for(hit=0; hit<url_num; ++hit){
-	if(urls[hit].port == urls[url_num].port &&
-	   strcmp(urls[hit].hostname, urls[url_num].hostname)){
+	if(0 == strcmp(urls[hit].hostname, urls[url_num].hostname)){
 	  break;
 	}
       }
@@ -769,6 +768,7 @@ static void lookup_address( int url_num ){
   }
 
   if(hit == url_num){
+    (void) fprintf(stderr, "DNS lookup: %s\n", urls[url_num].hostname);
     do_lookup_address(url_num);
   }
   else{
