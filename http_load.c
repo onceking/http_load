@@ -56,6 +56,9 @@
 #define USE_IPV6
 #endif
 
+#define STREQ(v, c) (0 == memcmp((v), (c), sizeof(c)))
+#define STRPFX(v, c) (0 == memcmp((v), (c), sizeof(c)-1))
+
 #define max(a,b) ((a)>=(b)?(a):(b))
 #define min(a,b) ((a)<=(b)?(a):(b))
 
@@ -558,7 +561,7 @@ read_url_file( char* url_file )
     int proto_len, host_len;
     char* cp;
 
-    if(0 == memcmp(url_file, "-", sizeof("-"))){
+    if(STREQ(url_file, "-")){
       fp = stdin;
     }
     else{
